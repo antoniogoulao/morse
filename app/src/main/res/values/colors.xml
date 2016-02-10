@@ -3,4 +3,13 @@
     <color name="colorPrimary">#FF440000</color>
     <color name="colorPrimaryDark">#FF220000</color>
     <color name="colorAccent">#FFDDDDDD</color>
+
+    <color name="list_item_title">#fff</color>
+    <color name="list_background">#88AA2222</color>
+    <color name="list_background_pressed">#992416</color>
+    <color name="list_divider">#272727</color>
+    <color name="counter_text_bg">#626262</color>
+    <color name="counter_text_color">#c5c4c4</color>
+
+    <color name="transparent_black">#DDFFFFFF</color>
 </resources>

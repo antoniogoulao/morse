@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <ListPreference
+        android:title="@string/morse_speed"
+        android:summary="@string/morse_speed_summary"
+        android:key="morsePulseSpeed"
+        android:defaultValue="25"
+        android:entries="@array/listArray"
+        android:entryValues="@array/listValues" />
+
+    <SwitchPreference android:title="@string/flashlight_switch"
+        android:summary="@string/flashlight_switch_summary"
+        android:key="flashlight"
+        android:defaultValue="true"/>
+
+</PreferenceScreen>
