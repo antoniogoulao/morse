@@ -1,5 +1,6 @@
 package io.goulao.morse;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
@@ -9,16 +10,20 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.content.res.TypedArray;
 import android.hardware.Camera;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioTrack;
+import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.v4.app.ActionBarDrawerToggle;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.EditText;
@@ -33,9 +38,12 @@ import io.goulao.morse.entity.FlashLightMorseCode;
 import io.goulao.morse.entity.MorseCodeCharacter;
 import io.goulao.morse.entity.MorseCodeLibrary;
 import io.goulao.morse.entity.NavDrawerItem;
+import io.goulao.morse.fragment.AboutFragment;
 import io.goulao.morse.fragment.SettingsFragment;
 
-public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
+import static android.media.AudioManager.PROPERTY_SUPPORT_MIC_NEAR_ULTRASOUND;
+
+public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener, SettingsFragment.OnSettingsFragmentInteractionListener {
 
 /*      International Morse Code
  1. The length of a dot is one unit.
@@ -45,13 +53,13 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
  5. The space between words is seven units.
  */
 
-    private static final String morseSpeedKey = "morsePulseSpeed";
-    private static final String flashlightSwitchKey = "flashlight";
+
     private Camera camera;
     private Camera.Parameters params;
     private FlashMorseAsyncTask flashMorseAsyncTask;
+    private PlaySoundAsyncTask playSoundAsyncTask;
 
-    private boolean flashallowed;
+    private boolean flashAllowed, soundAllowed;
     private int oneTimeUnit;
 
     private DrawerLayout mDrawerLayout;
@@ -145,6 +153,11 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         mDrawerList.setOnItemClickListener(new SlideMenuClickListener());
     }
 
+    @Override
+    public void onFragmentInteraction(Uri uri) {
+        // DO NOTHING
+    }
+
 
     /**
      * Slide menu item click listener
@@ -170,7 +183,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                 fragment = new SettingsFragment();
                 break;
             case 1:
-                //fragment = new AboutFragment();
+                fragment = new AboutFragment();
                 break;
 
             default:
@@ -224,6 +237,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                             for (Integer time : mChar.getTimes()) {
                                 fillMorseString(String.valueOf(mChar.getCode().charAt(pos++)));
                                 turnOnFlash();
+                                playSound(time/1000f);
                                 wait(time);
                                 turnOffFlash();
                                 wait(oneTimeUnit);
@@ -240,6 +254,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                                     Integer time = FlashLightMorseCode.getFlashLightValues().get(String.valueOf(morseCode.charAt(j)));
                                     list.add(time);
                                     turnOnFlash();
+                                    playSound(time/1000f);
                                     wait(time);
                                     turnOffFlash();
                                     wait(oneTimeUnit);
@@ -267,22 +282,152 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         }
     }
 
+    /**
+     *
+     */
+    private class PlaySoundAsyncTask extends AsyncTask<String, Void, Void> {
+
+        private Handler handler = new Handler();
+
+        @Override
+        protected Void doInBackground(String[] params) {
+            if (!soundAllowed) {
+                return null;
+            }
+
+            String input = params[0];
+            double duration;
+            synchronized (this) {
+                try {
+                    for (int i = 0; i < input.length(); i++) {
+                        String character = String.valueOf(input.charAt(i));
+                        if (character.equalsIgnoreCase(" ") || character.equalsIgnoreCase("\n")) {
+                            // End of word
+                            wait(7 * oneTimeUnit);
+                        } else {
+                            String morseCode = MorseCodeLibrary.getMorseCodeCharacterList().get(character.toLowerCase());
+                            // Avoid characters not supported by the library
+                            if (morseCode != null && !morseCode.equals("")) {
+                                for (int j = 0; j < morseCode.length(); j++) {
+                                    duration = (FlashLightMorseCode.getFlashLightValues().get(String.valueOf(morseCode.charAt(j))))/1000f;
+                                    playSound(duration);
+                                }
+                                wait(3 * oneTimeUnit);
+                            }
+                        }              // seconds
+                    }
+                } catch (Exception e) {
+                }
+            }
+            return null;
+        }
+    }
+
+    private void playSound(double duration) {
+        double freqOfTone = 800;           // hz
+        int sampleRate = 44100;              // a number
+
+
+        double dnumSamples = duration * sampleRate;
+        dnumSamples = Math.ceil(dnumSamples);
+        int numSamples = (int) dnumSamples;
+        double sample[] = new double[numSamples];
+        byte generatedSnd[] = new byte[2 * numSamples];
+
+
+        for (int i = 0; i < numSamples; ++i) {      // Fill the sample array
+            sample[i] = Math.sin(freqOfTone * 2 * Math.PI * i / (sampleRate));
+        }
+
+        // convert to 16 bit pcm sound array
+        // assumes the sample buffer is normalized.
+        // convert to 16 bit pcm sound array
+        // assumes the sample buffer is normalised.
+        int idx = 0;
+        int i = 0;
+
+        int ramp = numSamples / 20;                                    // Amplitude ramp as a percent of sample count
+
+
+        for (i = 0; i < ramp; ++i) {                                     // Ramp amplitude up (to avoid clicks)
+            double dVal = sample[i];
+            // Ramp up to maximum
+            final short val = (short) ((dVal * 32767 * i / ramp));
+            // in 16 bit wav PCM, first byte is the low order byte
+            generatedSnd[idx++] = (byte) (val & 0x00ff);
+            generatedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+        }
+
+
+        for (i = i; i < numSamples - ramp; ++i) {                        // Max amplitude for most of the samples
+            double dVal = sample[i];
+            // scale to maximum amplitude
+            final short val = (short) ((dVal * 32767));
+            // in 16 bit wav PCM, first byte is the low order byte
+            generatedSnd[idx++] = (byte) (val & 0x00ff);
+            generatedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+        }
+
+        for (i = i; i < numSamples; ++i) {                               // Ramp amplitude down
+            double dVal = sample[i];
+            // Ramp down to zero
+            final short val = (short) ((dVal * 32767 * (numSamples - i) / ramp));
+            // in 16 bit wav PCM, first byte is the low order byte
+            generatedSnd[idx++] = (byte) (val & 0x00ff);
+            generatedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+        }
+
+        AudioTrack audioTrack = null;                                   // Get audio track
+        try {
+            audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+                    sampleRate, AudioFormat.CHANNEL_CONFIGURATION_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT, (int) numSamples * 2,
+                    AudioTrack.MODE_STATIC);
+            audioTrack.write(generatedSnd, 0, generatedSnd.length);     // Load the track
+            audioTrack.play();                                          // Play the track
+        } catch (Exception e) {
+//                RunTimeError("Error: " + e);
+//                return false;
+        }
+
+        int x = 0;
+        do
+        {                                                     // Montior playback to find when done
+            if (audioTrack != null)
+                x = audioTrack.getPlaybackHeadPosition();
+            else
+                x = numSamples;
+        } while (x < numSamples);
+
+        if (audioTrack != null) audioTrack.release();
+    }
+
     private class SendButtonOnClickListener implements View.OnClickListener {
 
         @Override
         public void onClick(View v) {
+
+            EditText textInput = findViewById(R.id.text_to_send);
+            TextView morseText = findViewById(R.id.morse_text);
             if (flashMorseAsyncTask == null || flashMorseAsyncTask.getStatus() != AsyncTask.Status.RUNNING || flashMorseAsyncTask.isCancelled()) {
                 flashMorseAsyncTask = new FlashMorseAsyncTask();
-                EditText textInput = ((EditText) findViewById(R.id.text_to_send));
-                TextView morseText = (TextView) findViewById(R.id.morse_text);
                 String text = textInput.getText().toString();
                 if (!text.equals("")) {
-                    textInput.setText("");
-                    morseText.setText("");
                     ((TextView) findViewById(R.id.sent_text)).setText(text);
                     flashMorseAsyncTask.execute(text);
                 }
             }
+    //            if (playSoundAsyncTask == null || playSoundAsyncTask.getStatus() != AsyncTask.Status.RUNNING || playSoundAsyncTask.isCancelled()) {
+    //                playSoundAsyncTask = new PlaySoundAsyncTask();
+    //                String text = textInput.getText().toString();
+    //                if (!text.equals("")) {
+    //                    ((TextView) findViewById(R.id.sent_text)).setText(text);
+    //                    playSoundAsyncTask.execute(text);
+    //                }
+    //            }
+
+            textInput.setText("");
+            morseText.setText("");
         }
     }
 
@@ -300,7 +445,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
     // Turning On flash
     private void turnOnFlash() {
-        if (!flashallowed || camera == null || params == null) {
+        if (!flashAllowed || camera == null || params == null) {
             return;
         }
 
@@ -313,7 +458,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
     // Turning Off flash
     private void turnOffFlash() {
-        if (!flashallowed || camera == null || params == null) {
+        if (!flashAllowed || camera == null || params == null) {
             return;
         }
 
@@ -369,6 +514,16 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         super.onResume();
         PreferenceManager.getDefaultSharedPreferences(getBaseContext())
                 .registerOnSharedPreferenceChangeListener(this);
+        // Here, thisActivity is the current activity
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.CAMERA)
+                != PackageManager.PERMISSION_GRANTED) {
+
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.CAMERA},
+                    1);
+
+        }
     }
 
     @Override
@@ -410,20 +565,56 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         }
     }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case 1: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                    // permission was granted, yay! Do the
+                    // contacts-related task you need to do.
+
+                } else {
+
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+                }
+                return;
+            }
+
+            // other 'case' lines to check for other
+            // permissions this app might request.
+        }
+    }
+
     private void loadPreferences() {
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-        flashallowed = sp.getBoolean(flashlightSwitchKey, false);
-        oneTimeUnit = Integer.parseInt(sp.getString(morseSpeedKey, "150"));
+        flashAllowed = sp.getBoolean(this.getString(R.string.flashlightStringKey), false);
+        oneTimeUnit = Integer.parseInt(sp.getString(this.getString(R.string.morsePulseSpeed), "150"));
+        soundAllowed = sp.getBoolean(this.getString(R.string.soundStringKey), false);
     }
 
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
         Log.d("Preference changed", "Key " + key + " pressed");
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-        if(key.equals(flashlightSwitchKey)) {
-            flashallowed = sp.getBoolean(flashlightSwitchKey, false);
-        } else if (key.equals(morseSpeedKey)) {
-            oneTimeUnit = Integer.parseInt(sp.getString(morseSpeedKey, "150"));
+        String morseSpeedKey = this.getString(R.string.morsePulseSpeed);
+        String flashlightSwitchKey = this.getString(R.string.flashlightStringKey);
+        String soundSwitchKey = this.getString(R.string.soundStringKey);
+        switch (key) {
+            case "flashlight":
+                flashAllowed = sp.getBoolean(flashlightSwitchKey, false);
+                return;
+            case "morsePulseSpeed":
+                oneTimeUnit = Integer.parseInt(sp.getString(morseSpeedKey, "150"));
+                return;
+            case "ultrasounds":
+                soundAllowed = sp.getBoolean(soundSwitchKey, false);
+                return;
+            default:
         }
     }
 }

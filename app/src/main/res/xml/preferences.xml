@@ -3,14 +3,19 @@
     <ListPreference
         android:title="@string/morse_speed"
         android:summary="@string/morse_speed_summary"
-        android:key="morsePulseSpeed"
+        android:key="@string/morsePulseSpeed"
         android:defaultValue="25"
         android:entries="@array/listArray"
         android:entryValues="@array/listValues" />
 
     <SwitchPreference android:title="@string/flashlight_switch"
         android:summary="@string/flashlight_switch_summary"
-        android:key="flashlight"
+        android:key="@string/flashlightStringKey"
+        android:defaultValue="true"/>
+
+    <SwitchPreference android:title="@string/ultrasounds_switch"
+        android:summary="@string/ultrasounds_switch_summary"
+        android:key="@string/soundStringKey"
         android:defaultValue="true"/>
 
 </PreferenceScreen>
