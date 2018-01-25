@@ -5,10 +5,10 @@ import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
-import android.content.res.TypedArray;
 import android.hardware.Camera;
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -18,31 +18,35 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
-import android.support.v4.app.ActionBarDrawerToggle;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
 import android.widget.AdapterView;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import io.goulao.morse.adapter.NavDrawerListAdapter;
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import butterknife.Unbinder;
 import io.goulao.morse.entity.FlashLightMorseCode;
 import io.goulao.morse.entity.MorseCodeCharacter;
 import io.goulao.morse.entity.MorseCodeLibrary;
-import io.goulao.morse.entity.NavDrawerItem;
 import io.goulao.morse.fragment.AboutFragment;
 import io.goulao.morse.fragment.SettingsFragment;
-
-import static android.media.AudioManager.PROPERTY_SUPPORT_MIC_NEAR_ULTRASOUND;
 
 public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener, SettingsFragment.OnSettingsFragmentInteractionListener {
 
@@ -54,6 +58,21 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
  5. The space between words is seven units.
  */
 
+    private Unbinder unbinder;
+    @BindView(R.id.send_button)
+    ImageButton sendButton;
+    @BindView(R.id.my_toolbar)
+    Toolbar toolbar;
+    @BindView(R.id.drawer_layout)
+    DrawerLayout mDrawerLayout;
+    //    @BindView(R.id.list_slider)
+//    ListView mDrawerList;
+    @BindView(R.id.morse_text)
+    TextView morseText;
+    @BindView(R.id.text_to_send)
+    EditText textInput;
+    @BindView(R.id.sent_text)
+    TextView sentText;
 
     private Camera camera;
     private Camera.Parameters params;
@@ -63,12 +82,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     private boolean flashAllowed, soundAllowed;
     private int oneTimeUnit;
 
-    private DrawerLayout mDrawerLayout;
-    private ListView mDrawerList;
-    private ActionBarDrawerToggle mDrawerToggle;
-    private List<NavDrawerItem> navDrawerItems;
-    private String[] navMenuTitles;
-    private NavDrawerListAdapter adapter;
     // nav drawer title
     private CharSequence mDrawerTitle;
 
@@ -79,8 +92,10 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        unbinder = ButterKnife.bind(this);
         PreferenceManager.getDefaultSharedPreferences(getBaseContext()).registerOnSharedPreferenceChangeListener(this);
         // First check if device is supporting flashlight or not
+        // TODO REMOVE
         boolean hasFlash = getApplicationContext().getPackageManager()
                 .hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH);
 
@@ -91,7 +106,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                     .create();
             alert.setTitle("Error");
             alert.setMessage("Sorry, your device doesn't support flash light!");
-            alert.setButton("OK", new DialogInterface.OnClickListener() {
+            alert.setButton(AlertDialog.BUTTON_POSITIVE, "OK", new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog, int which) {
                     // closing the application
                     finish();
@@ -102,56 +117,61 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         }
 
         getCamera();
-        findViewById(R.id.send_button).setOnClickListener(new SendButtonOnClickListener());
-
-        navMenuTitles = getResources().getStringArray(R.array.nav_drawer_items);
-
-        // nav drawer icons from resources
-        TypedArray navMenuIcons = getResources()
-                .obtainTypedArray(R.array.nav_drawer_icons);
-        mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
-        mDrawerList = (ListView) findViewById(R.id.list_slider);
-
-        navDrawerItems = new ArrayList<NavDrawerItem>();
-        for (int i = 0; i < navMenuTitles.length; i++) {
-            navDrawerItems.add(new NavDrawerItem(navMenuTitles[i], navMenuIcons.getResourceId(i, -1)));
-        }
-        // Recycle the typed array
-        navMenuIcons.recycle();
-
+        sendButton.setOnClickListener(new SendButtonOnClickListener());
+        textInput.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                boolean handled = false;
+                if (actionId == EditorInfo.IME_ACTION_SEND) {
+                    sendMessage();
+                    handled = true;
+                }
+                return handled;
+            }
+        });
         mTitle = mDrawerTitle = getTitle();
 
         // setting the nav drawer list adapter
-        adapter = new NavDrawerListAdapter(getApplicationContext(),
-                navDrawerItems);
-        mDrawerList.setAdapter(adapter);
-
-        // enabling action bar app icon and behaving it as toggle button
-        assert getSupportActionBar() != null;
-        getSupportActionBar().setDisplayShowHomeEnabled(true);
-        getSupportActionBar().setHomeButtonEnabled(true);
+        setSupportActionBar(toolbar);
+        ActionBarDrawerToggle mDrawerToggle = new ActionBarDrawerToggle(
+                this, mDrawerLayout, toolbar,
+                R.string.app_name, R.string.app_name
+        );
+        mDrawerLayout.addDrawerListener(mDrawerToggle);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setHomeButtonEnabled(true);
+        mDrawerToggle.syncState();
+//        mDrawerList.setAdapter(adapter);
+//        mDrawerList.setOnItemClickListener(new SlideMenuClickListener());
+    }
 
-        mDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout,
-                R.drawable.ic_menu_white_36px, //nav menu toggle icon
-                R.string.app_name, // nav drawer open - description for accessibility
-                R.string.app_name // nav drawer close - description for accessibility
-        ) {
-            public void onDrawerClosed(View view) {
-                getSupportActionBar().setTitle(mTitle);
-                // calling onPrepareOptionsMenu() to show action bar icons
-                invalidateOptionsMenu();
-            }
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
 
-            public void onDrawerOpened(View drawerView) {
-                getSupportActionBar().setTitle(mDrawerTitle);
-                // calling onPrepareOptionsMenu() to hide action bar icons
-                invalidateOptionsMenu();
-            }
-        };
-        mDrawerToggle.setDrawerIndicatorEnabled(false);
-        mDrawerLayout.setDrawerListener(mDrawerToggle);
-        mDrawerList.setOnItemClickListener(new SlideMenuClickListener());
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.actions, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_share:
+                if (!morseText.getText().equals("")) {
+                    Intent sendIntent = new Intent();
+                    sendIntent.setAction(Intent.ACTION_SEND);
+                    sendIntent.putExtra(Intent.EXTRA_TEXT, morseText.getText());
+                    sendIntent.setType("text/plain");
+                    startActivity(Intent.createChooser(sendIntent, getResources().getText(R.string.send_to)));
+                }
+                return true;
+
+            default:
+                // If we got here, the user's action was not recognized.
+                // Invoke the superclass to handle it.
+                return super.onOptionsItemSelected(item);
+
+        }
     }
 
     @Override
@@ -163,14 +183,26 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     /**
      * Slide menu item click listener
      */
-    private class SlideMenuClickListener implements
-            ListView.OnItemClickListener {
-        @Override
-        public void onItemClick(AdapterView<?> parent, View view, int position,
-                                long id) {
-            // display view for selected nav drawer item
-            displayView(position);
+    private void sendMessage() {
+        if (flashMorseAsyncTask == null || flashMorseAsyncTask.getStatus() != AsyncTask.Status.RUNNING || flashMorseAsyncTask.isCancelled()) {
+            flashMorseAsyncTask = new FlashMorseAsyncTask();
+            String text = textInput.getText().toString();
+            if (!text.equals("")) {
+                sentText.setText(text);
+                flashMorseAsyncTask.execute(text);
+            }
         }
+        //            if (playSoundAsyncTask == null || playSoundAsyncTask.getStatus() != AsyncTask.Status.RUNNING || playSoundAsyncTask.isCancelled()) {
+        //                playSoundAsyncTask = new PlaySoundAsyncTask();
+        //                String text = textInput.getText().toString();
+        //                if (!text.equals("")) {
+        //                    ((TextView) findViewById(R.id.sent_text)).setText(text);
+        //                    playSoundAsyncTask.execute(text);
+        //                }
+        //            }
+
+        textInput.setText("");
+        morseText.setText("");
     }
 
     /**
@@ -200,17 +232,18 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
             FragmentManager fragmentManager = getFragmentManager();
             fragmentManager.beginTransaction()
-                    .add(R.id.content_frame, fragment).addToBackStack(navMenuTitles[position]).commit();
+                    .add(R.id.content_frame, fragment)/*.addToBackStack(navMenuTitles[position])*/.commit();
 
             // update selected item and title, then close the drawer
-            mDrawerList.setItemChecked(position, true);
-            mDrawerList.setSelection(position);
-            setTitle(navMenuTitles[position]);
+//            mDrawerList.setItemChecked(position, false);
+//            mDrawerList.setSelection(position);
+//            setTitle(navMenuTitles[position]);
         } else {
             // error in creating fragment
             Log.e("MainActivity", "Error in creating fragment");
         }
-        mDrawerLayout.closeDrawer(mDrawerList);
+//        mDrawerLayout.closeDrawer(mDrawerList);
+//        toolbar.closeDrawer(mDrawerList);
     }
 
     /**
@@ -238,7 +271,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                             for (Integer time : mChar.getTimes()) {
                                 fillMorseString(String.valueOf(mChar.getCode().charAt(pos++)));
                                 turnOnFlash();
-                                playSound(time/1000f);
+                                playSound(time / 1000f);
                                 wait(time);
                                 turnOffFlash();
                                 wait(oneTimeUnit);
@@ -255,7 +288,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                                     Integer time = FlashLightMorseCode.getFlashLightValues().get(String.valueOf(morseCode.charAt(j)));
                                     list.add(time);
                                     turnOnFlash();
-                                    playSound(time/1000f);
+                                    playSound(time / 1000f);
                                     wait(time);
                                     turnOffFlash();
                                     wait(oneTimeUnit);
@@ -274,7 +307,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         }
 
         private void fillMorseString(final String addition) {
-            final TextView morseText = (TextView) findViewById(R.id.morse_text);
             handler.post(new Runnable() {
                 public void run() {
                     morseText.setText(morseText.getText() + addition);
@@ -310,7 +342,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                             // Avoid characters not supported by the library
                             if (morseCode != null && !morseCode.equals("")) {
                                 for (int j = 0; j < morseCode.length(); j++) {
-                                    duration = (FlashLightMorseCode.getFlashLightValues().get(String.valueOf(morseCode.charAt(j))))/1000f;
+                                    duration = (FlashLightMorseCode.getFlashLightValues().get(String.valueOf(morseCode.charAt(j)))) / 1000f;
                                     playSound(duration);
                                 }
                                 wait(3 * oneTimeUnit);
@@ -407,28 +439,9 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
         @Override
         public void onClick(View v) {
+            sendMessage();
 
-            EditText textInput = findViewById(R.id.text_to_send);
-            TextView morseText = findViewById(R.id.morse_text);
-            if (flashMorseAsyncTask == null || flashMorseAsyncTask.getStatus() != AsyncTask.Status.RUNNING || flashMorseAsyncTask.isCancelled()) {
-                flashMorseAsyncTask = new FlashMorseAsyncTask();
-                String text = textInput.getText().toString();
-                if (!text.equals("")) {
-                    ((TextView) findViewById(R.id.sent_text)).setText(text);
-                    flashMorseAsyncTask.execute(text);
-                }
-            }
-    //            if (playSoundAsyncTask == null || playSoundAsyncTask.getStatus() != AsyncTask.Status.RUNNING || playSoundAsyncTask.isCancelled()) {
-    //                playSoundAsyncTask = new PlaySoundAsyncTask();
-    //                String text = textInput.getText().toString();
-    //                if (!text.equals("")) {
-    //                    ((TextView) findViewById(R.id.sent_text)).setText(text);
-    //                    playSoundAsyncTask.execute(text);
-    //                }
-    //            }
 
-            textInput.setText("");
-            morseText.setText("");
         }
     }
 
@@ -475,6 +488,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         if (flashMorseAsyncTask != null && flashMorseAsyncTask.getStatus() != AsyncTask.Status.FINISHED) {
             flashMorseAsyncTask.cancel(true);
         }
+        unbinder.unbind();
     }
 
     @Override
@@ -527,12 +541,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         }
     }
 
-    @Override
-    public void setTitle(CharSequence title) {
-        mTitle = title;
-        getSupportActionBar().setTitle(mTitle);
-    }
-
     /**
      * When using the ActionBarDrawerToggle, you must call it during
      * onPostCreate() and onConfigurationChanged()...
@@ -542,14 +550,14 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     protected void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
         // Sync the toggle state after onRestoreInstanceState has occurred.
-        mDrawerToggle.syncState();
+//        mDrawerToggle.syncState();
     }
 
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         // Pass any configuration change to the drawer toggls
-        mDrawerToggle.onConfigurationChanged(newConfig);
+//        mDrawerToggle.onConfigurationChanged(newConfig);
     }
 
     @Override

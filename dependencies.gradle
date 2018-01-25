@@ -1,0 +1,53 @@
+allprojects {
+    repositories {
+        jcenter()
+    }
+}
+ext {
+
+    //Android
+    appVersionCode = 1
+    appVersionName = '0.0.5'
+    androidBuildToolsVersion = '25.0.2'
+    androidMinSdkVersion = 19
+    androidTargetSdkVersion = 25
+    androidCompileSdkVersion = 25
+    androidSupportVersion = '23.2.1'
+
+    //Libraries
+    daggerVersion = '2.8'
+    butterKnifeVersion = '8.4.0'
+    rxJavaVersion = '2.0.2'
+    rxAndroidVersion = '2.0.1'
+    javaxAnnotationVersion = '1.0'
+    javaxInjectVersion = '1'
+    retrofitVersion = '2.1.0'
+    retrofitRxJava2AdapterVersion = '1.0.0'
+    cfCommonLibVersion = '0.0.1'
+    okHttpVersion = '3.4.1'
+    jacksonVersion = '2.6.3'
+    realmVersion = '0.82.1'
+    crashlyticsVersion = '2.6.5@aar'
+
+    //Testing
+    jUnitVersion = '4.12'
+    mockitoVersion = '1.9.5'//'2.0.43-beta', wait for dexmaker
+    dexmakerVersion = '1.2'
+    mockWebServerVersion = '3.2.0'
+    commonsIOVersion = '2.4'
+    jetAnnotationVersion = '15.0'
+    espressoVersion = '2.2.2'
+    assertJVersion = '1.7.1'
+
+    presentationDependencies = [
+            daggerCompiler     : "com.google.dagger:dagger-compiler:${daggerVersion}",
+            butterKnifeCompiler: "com.jakewharton:butterknife-compiler:${butterKnifeVersion}",
+            dagger             : "com.google.dagger:dagger:${daggerVersion}",
+            butterKnife        : "com.jakewharton:butterknife:${butterKnifeVersion}",
+            rxJava             : "io.reactivex.rxjava2:rxjava:${rxJavaVersion}",
+            rxAndroid          : "io.reactivex.rxjava2:rxandroid:${rxAndroidVersion}",
+            androidCompatv7    : "com.android.support:appcompat-v7:${androidSupportVersion}",
+            javaxAnnotation    : "javax.annotation:jsr250-api:${javaxAnnotationVersion}",
+            crashlytics        : "com.crashlytics.sdk.android:crashlytics:${crashlyticsVersion}"
+    ]
+}

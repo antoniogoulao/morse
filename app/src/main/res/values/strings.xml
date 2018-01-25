@@ -14,17 +14,8 @@
     <string name="send_message_btn">Display Message</string>
     <string name="share_message_btn">Share Message</string>
     <string name="insert_text_here_and_press_send">Insert Text Here and Press Send</string>
-
-    <!-- Nav Drawer Menu Items -->
-    <string-array name="nav_drawer_items">
-        <item >Settings</item>
-        <item >About</item>
-    </string-array>
-
-    <!-- Nav Drawer List Item Icons -->
-    <!-- Keep them in order as the titles are in -->
-    <array name="nav_drawer_icons">
-        <item>@drawable/ic_settings_white_36px</item>
-        <item>@drawable/ic_info_outline_white_36px</item>
-    </array>
+    <string name="send_to">Share</string>
+    <string name="share_label">Share with...</string>
+    <string name="settings_label">Settings</string>
+    <string name="about_label">About</string>
 </resources>
