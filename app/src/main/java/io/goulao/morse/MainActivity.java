@@ -18,7 +18,10 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
+import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
@@ -65,8 +68,8 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     Toolbar toolbar;
     @BindView(R.id.drawer_layout)
     DrawerLayout mDrawerLayout;
-    //    @BindView(R.id.list_slider)
-//    ListView mDrawerList;
+    @BindView(R.id.nav_view)
+    NavigationView navigationView;
     @BindView(R.id.morse_text)
     TextView morseText;
     @BindView(R.id.text_to_send)
@@ -143,7 +146,116 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         mDrawerToggle.syncState();
 //        mDrawerList.setAdapter(adapter);
 //        mDrawerList.setOnItemClickListener(new SlideMenuClickListener());
+
+        setUpNavigationView();
     }
+
+    private void setUpNavigationView() {
+        navigationView.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
+            @Override
+            public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+                //Check to see which item was being clicked and perform appropriate action
+                Fragment fragment = null;
+                switch (item.getItemId()) {
+                    case R.id.nav_settings:
+                        fragment = new SettingsFragment();
+                        break;
+                    case R.id.nav_about:
+                        fragment = new AboutFragment();
+                        break;
+                }
+
+                //Checking if the item is in checked state or not, if not make it in checked state
+                if (item.isChecked()) {
+                    item.setChecked(false);
+                } else {
+                    item.setChecked(true);
+                }
+                item.setChecked(true);
+
+//                loadHomeFragment();
+                if (fragment != null) {
+
+                    // If other fragments are being displayed pop them out
+                    if (getFragmentManager().getBackStackEntryCount() > 0) {
+                        getFragmentManager().popBackStack();
+                    }
+
+                    FragmentManager fragmentManager = getFragmentManager();
+                    fragmentManager.beginTransaction()
+                            .add(R.id.frame, fragment).addToBackStack(item.getTitle().toString()).commit();
+
+                    // update selected item and title, then close the drawer
+//            mDrawerList.setItemChecked(position, false);
+//            mDrawerList.setSelection(position);
+//            setTitle(navMenuTitles[position]);
+                } else {
+                    // error in creating fragment
+                    Log.e("MainActivity", "Error in creating fragment");
+                }
+//        mDrawerLayout.closeDrawer(mDrawerList);
+//        toolbar.closeDrawer(mDrawerList);
+//            }
+        mDrawerLayout.closeDrawers();
+        invalidateOptionsMenu();
+                return true;
+            }
+        });
+    }
+
+    /***
+     * Returns respected fragment that user
+     * selected from navigation menu
+     */
+    private void loadHomeFragment() {
+        // selecting appropriate nav menu item
+//        selectNavMenu();
+
+        // set toolbar title
+//        setToolbarTitle();
+
+        // if user select the current navigation menu again, don't do anything
+        // just close the navigation drawer
+//        if (getSupportFragmentManager().findFragmentByTag(CURRENT_TAG) != null) {
+//            mDrawerLayout.closeDrawers();
+
+            // show or hide the fab button
+//            toggleFab();
+//            return;
+//        }
+
+        // Sometimes, when fragment has huge data, screen seems hanging
+        // when switching between navigation menus
+        // So using runnable, the fragment is loaded with cross fade effect
+        // This effect can be seen in GMail app
+//        Runnable mPendingRunnable = new Runnable() {
+//            @Override
+//            public void run() {
+//                // update the main content by replacing fragments
+//                Fragment fragment = getHomeFragment();
+//                FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
+//                fragmentTransaction.setCustomAnimations(android.R.anim.fade_in,
+//                        android.R.anim.fade_out);
+//                fragmentTransaction.replace(R.id.frame, fragment, CURRENT_TAG);
+//                fragmentTransaction.commitAllowingStateLoss();
+//            }
+//        };
+
+        // If mPendingRunnable is not null, then add to the message queue
+//        if (mPendingRunnable != null) {
+//            mHandler.post(mPendingRunnable);
+//        }
+//
+//        // show or hide the fab button
+////        toggleFab();
+//
+//        //Closing drawer on item click
+//        mDrawerLayout.closeDrawers();
+//
+//        // refresh toolbar menu
+//        invalidateOptionsMenu();
+    }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
