@@ -2,7 +2,6 @@ package io.goulao.morse;
 
 import android.Manifest;
 import android.app.AlertDialog;
-import android.app.Fragment;
 import android.app.FragmentManager;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -21,6 +20,7 @@ import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -33,10 +33,8 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
-import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.ListView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -51,7 +49,7 @@ import io.goulao.morse.entity.MorseCodeLibrary;
 import io.goulao.morse.fragment.AboutFragment;
 import io.goulao.morse.fragment.SettingsFragment;
 
-public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener, SettingsFragment.OnSettingsFragmentInteractionListener {
+public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
 /*      International Morse Code
  1. The length of a dot is one unit.
@@ -60,6 +58,9 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
  4. The space between letters is three units.
  5. The space between words is seven units.
  */
+
+// index to identify current nav menu item
+    public static int navItemIndex = 0;
 
     private Unbinder unbinder;
     @BindView(R.id.send_button)
@@ -88,14 +89,16 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     // nav drawer title
     private CharSequence mDrawerTitle;
 
-    // used to store app title
-    private CharSequence mTitle;
+    private Handler mHandler;
+    private String fragmentTabName;
+    private Fragment fragment = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         unbinder = ButterKnife.bind(this);
+        mHandler = new Handler();
         PreferenceManager.getDefaultSharedPreferences(getBaseContext()).registerOnSharedPreferenceChangeListener(this);
         // First check if device is supporting flashlight or not
         // TODO REMOVE
@@ -132,7 +135,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                 return handled;
             }
         });
-        mTitle = mDrawerTitle = getTitle();
+        mDrawerTitle = getTitle();
 
         // setting the nav drawer list adapter
         setSupportActionBar(toolbar);
@@ -144,8 +147,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setHomeButtonEnabled(true);
         mDrawerToggle.syncState();
-//        mDrawerList.setAdapter(adapter);
-//        mDrawerList.setOnItemClickListener(new SlideMenuClickListener());
 
         setUpNavigationView();
     }
@@ -155,7 +156,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 //Check to see which item was being clicked and perform appropriate action
-                Fragment fragment = null;
                 switch (item.getItemId()) {
                     case R.id.nav_settings:
                         fragment = new SettingsFragment();
@@ -164,6 +164,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                         fragment = new AboutFragment();
                         break;
                 }
+                fragmentTabName = item.getTitle().toString();
 
                 //Checking if the item is in checked state or not, if not make it in checked state
                 if (item.isChecked()) {
@@ -173,34 +174,18 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                 }
                 item.setChecked(true);
 
-//                loadHomeFragment();
-                if (fragment != null) {
-
-                    // If other fragments are being displayed pop them out
-                    if (getFragmentManager().getBackStackEntryCount() > 0) {
-                        getFragmentManager().popBackStack();
-                    }
-
-                    FragmentManager fragmentManager = getFragmentManager();
-                    fragmentManager.beginTransaction()
-                            .add(R.id.frame, fragment).addToBackStack(item.getTitle().toString()).commit();
-
-                    // update selected item and title, then close the drawer
-//            mDrawerList.setItemChecked(position, false);
-//            mDrawerList.setSelection(position);
-//            setTitle(navMenuTitles[position]);
-                } else {
-                    // error in creating fragment
-                    Log.e("MainActivity", "Error in creating fragment");
-                }
-//        mDrawerLayout.closeDrawer(mDrawerList);
-//        toolbar.closeDrawer(mDrawerList);
-//            }
-        mDrawerLayout.closeDrawers();
-        invalidateOptionsMenu();
+                loadHomeFragment();
                 return true;
             }
         });
+    }
+
+    private void setToolbarTitle() {
+//        getSupportActionBar().setTitle(activityTitles[navItemIndex]);
+    }
+
+    private void selectNavMenu() {
+        navigationView.getMenu().getItem(navItemIndex).setChecked(true);
     }
 
     /***
@@ -209,51 +194,47 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
      */
     private void loadHomeFragment() {
         // selecting appropriate nav menu item
-//        selectNavMenu();
+        selectNavMenu();
 
         // set toolbar title
-//        setToolbarTitle();
+        setToolbarTitle();
 
         // if user select the current navigation menu again, don't do anything
         // just close the navigation drawer
-//        if (getSupportFragmentManager().findFragmentByTag(CURRENT_TAG) != null) {
-//            mDrawerLayout.closeDrawers();
-
-            // show or hide the fab button
-//            toggleFab();
-//            return;
-//        }
+        if (getSupportFragmentManager().findFragmentByTag(fragmentTabName) != null) {
+            mDrawerLayout.closeDrawers();
+            return;
+        }
+        getSupportFragmentManager().popBackStack();
 
         // Sometimes, when fragment has huge data, screen seems hanging
         // when switching between navigation menus
         // So using runnable, the fragment is loaded with cross fade effect
         // This effect can be seen in GMail app
-//        Runnable mPendingRunnable = new Runnable() {
-//            @Override
-//            public void run() {
-//                // update the main content by replacing fragments
-//                Fragment fragment = getHomeFragment();
-//                FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
-//                fragmentTransaction.setCustomAnimations(android.R.anim.fade_in,
-//                        android.R.anim.fade_out);
-//                fragmentTransaction.replace(R.id.frame, fragment, CURRENT_TAG);
-//                fragmentTransaction.commitAllowingStateLoss();
-//            }
-//        };
+        Runnable mPendingRunnable = new Runnable() {
+            @Override
+            public void run() {
+                // update the main content by replacing fragments
+                getSupportFragmentManager().executePendingTransactions();
+                FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
+                fragmentTransaction.setCustomAnimations(android.R.anim.fade_in,
+                        android.R.anim.fade_out);
+                fragmentTransaction.replace(R.id.frame, fragment, fragmentTabName);
+                fragmentTransaction.addToBackStack(fragmentTabName);
+                fragmentTransaction.commitAllowingStateLoss();
+            }
+        };
 
         // If mPendingRunnable is not null, then add to the message queue
-//        if (mPendingRunnable != null) {
-//            mHandler.post(mPendingRunnable);
-//        }
-//
-//        // show or hide the fab button
-////        toggleFab();
-//
-//        //Closing drawer on item click
-//        mDrawerLayout.closeDrawers();
-//
-//        // refresh toolbar menu
-//        invalidateOptionsMenu();
+        if (mPendingRunnable != null) {
+            mHandler.post(mPendingRunnable);
+        }
+
+        //Closing drawer on item click
+        mDrawerLayout.closeDrawers();
+
+        // refresh toolbar menu
+        invalidateOptionsMenu();
     }
 
 
@@ -286,11 +267,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         }
     }
 
-    @Override
-    public void onFragmentInteraction(Uri uri) {
-        // DO NOTHING
-    }
-
 
     /**
      * Slide menu item click listener
@@ -315,47 +291,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
         textInput.setText("");
         morseText.setText("");
-    }
-
-    /**
-     * Diplaying fragment view for selected nav drawer list item
-     */
-    private void displayView(int position) {
-        // update the main content by replacing fragments
-        Fragment fragment = null;
-        switch (position) {
-            case 0:
-                fragment = new SettingsFragment();
-                break;
-            case 1:
-                fragment = new AboutFragment();
-                break;
-
-            default:
-                break;
-        }
-
-        if (fragment != null) {
-
-            // If other fragments are being displayed pop them out
-            if (getFragmentManager().getBackStackEntryCount() > 0) {
-                getFragmentManager().popBackStack();
-            }
-
-            FragmentManager fragmentManager = getFragmentManager();
-            fragmentManager.beginTransaction()
-                    .add(R.id.content_frame, fragment)/*.addToBackStack(navMenuTitles[position])*/.commit();
-
-            // update selected item and title, then close the drawer
-//            mDrawerList.setItemChecked(position, false);
-//            mDrawerList.setSelection(position);
-//            setTitle(navMenuTitles[position]);
-        } else {
-            // error in creating fragment
-            Log.e("MainActivity", "Error in creating fragment");
-        }
-//        mDrawerLayout.closeDrawer(mDrawerList);
-//        toolbar.closeDrawer(mDrawerList);
     }
 
     /**
@@ -675,13 +610,13 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     @Override
     public void onBackPressed() {
 
-        int count = getFragmentManager().getBackStackEntryCount();
+        int count = getSupportFragmentManager().getBackStackEntryCount();
 
         if (count == 0) {
             super.onBackPressed();
             //additional code
         } else {
-            getFragmentManager().popBackStack();
+            getSupportFragmentManager().popBackStack();
             setTitle(mDrawerTitle);
         }
     }

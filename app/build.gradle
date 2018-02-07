@@ -1,9 +1,16 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        config {
+            keyAlias 'MyMorseKey'
+            keyPassword 'MyMorseKeyPassword'
+            storeFile file('/Users/antoniogoulao/keystores/android.jks')
+            storePassword 'toino919920494'
+        }
+    }
     compileSdkVersion 26
     buildToolsVersion "26.0.2"
-
     defaultConfig {
         applicationId "io.goulao.morse"
         minSdkVersion 19
@@ -20,12 +27,14 @@ android {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile fileTree(include: ['*.jar'], dir: 'libs')
     testCompile 'junit:junit:4.12'
     compile 'com.android.support:appcompat-v7:26.1.0'
+    compile 'com.android.support:preference-v7:26.1.0'
+    compile 'com.android.support:preference-v14:26.1.0'
     compile 'com.android.support:support-v4:26.1.0'
     compile 'com.android.support:design:26.1.0'
-    compile "com.google.dagger:dagger:2.10"
+    compile 'com.google.dagger:dagger:2.10'
     annotationProcessor 'com.google.dagger:dagger-compiler:2.10'
     annotationProcessor 'com.jakewharton:butterknife-compiler:8.6.0'
     provided 'javax.annotation:jsr250-api:1.0'

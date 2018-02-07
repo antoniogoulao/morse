@@ -11,5 +11,5 @@
     <color name="counter_text_bg">#626262</color>
     <color name="counter_text_color">#c5c4c4</color>
 
-    <color name="transparent_black">#DDFFFFFF</color>
+    <color name="transparent_white">#DDFFFFFF</color>
 </resources>
